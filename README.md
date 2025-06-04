@@ -25,7 +25,7 @@ pip install -r requirements.txt
      - `adj_mat.npy`
      - `stationname.npy`
    
-   Please contact the Smart Mobility and Infrastructure Lab for access to these data files.
+   
 
 3. Run the application:
 ```bash

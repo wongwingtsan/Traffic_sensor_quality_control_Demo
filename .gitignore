@@ -44,6 +44,6 @@ database/
 *.npy
 
 # Exceptions - files to include
-!clustering_result_july13.csv
+!clustering_result.csv
 
 test.ipynb

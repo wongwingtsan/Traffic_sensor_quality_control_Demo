@@ -58,7 +58,7 @@ st.subheader('Clustering for CCS in Georgia :peach:')
 #st.subheader('All clusters visualized on Map')
 
 #导入母地图模块
-DF = pd.read_csv('./clustering_result_july13.csv')
+DF = pd.read_csv('./clustering_result.csv')
 geo = './map.geojson'
 file = open(geo,encoding='utf8')
 text = file.read()
