@@ -42,3 +42,5 @@ Thumbs.db
 database/
 *.csv
 *.npy 
+
+test.ipynb
