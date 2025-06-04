@@ -66,17 +66,16 @@ def model_processing(z,K,h,model_path,DGCN,sequences,cluster_belong,DF,stationna
 
 
 def kriging_result(DGCN,sequences,cluster_belong,DF,stationname,other_stations_ls):
-
-    all_arrays= np.empty((1, 288,len(sequences)))
+    all_arrays = np.empty((1, 288, len(sequences)))
     
     for i in range(len(sequences)):
-        all_arrays[0,:,i]=sequences[i]['Volume'].values   
-    all_arrays=torch.from_numpy(all_arrays.astype('float32')).to(device)
+        # Extract the time series values (columns 4 to 291 contain the 288 time points)
+        all_arrays[0,:,i] = sequences[i].iloc[0][4:292].values
+    all_arrays = torch.from_numpy(all_arrays.astype('float32')).to(device)
 
     CLUSTER = DF.loc[DF['cluster'] == cluster_belong]  
     know_nodes = set(CLUSTER['Unnamed: 0'])
-    #test_node= set(DF.loc[DF['cluster'] == stationname]['Unnamed: 0'])
-    adj = np.load('/Users/yongcanhuang/streamlit/adj_mat.npy')
+    adj = np.load('./data/adj_mat.npy')
     A_dynamic = adj[list(know_nodes), :][:, list(know_nodes)]   
     A_q = torch.from_numpy((calculate_random_walk_matrix(A_dynamic).T).astype('float32')).to(device)
     A_h = torch.from_numpy((calculate_random_walk_matrix(A_dynamic.T).T).astype('float32')).to(device)
@@ -88,17 +87,17 @@ def kriging_result(DGCN,sequences,cluster_belong,DF,stationname,other_stations_l
     return X_res[:,:,index], index
 
 
-def krige_og(sequences, X_res,index):
-    input_seq=sequences.copy()[index]['Volume'].values
+def krige_og(sequences, X_res, index):
+    # Extract the time series values (columns 4 to 291 contain the 288 time points)
+    input_seq = sequences[index].iloc[0][4:292].values
     fig,ax = plt.subplots(figsize = (16,5))
-    ax.plot(input_seq,label='Input Sequence',linewidth=2,zorder=5,color='gray')
-    ax.plot(X_res[0],label='Kriging Sequence',linewidth=2,zorder=5,color='orange')
+    ax.plot(input_seq, label='Input Sequence', linewidth=2, zorder=5, color='gray')
+    ax.plot(X_res[0], label='Kriging Sequence', linewidth=2, zorder=5, color='orange')
     ax.set_ylabel('CCS Counts',fontsize=20)
     ax.tick_params(axis="x", labelsize=14)
     ax.tick_params(axis="y", labelsize=14)
-    plt.title('Kriging result for '+sequences[index]['Site'].iloc[0]+'_'+  sequences[index]['Direction'].iloc[0]+' '+ sequences[index]['Time'].iloc[0][0:10],fontsize=20)
-   # ax.set_xticklabels(['0:00','4:00','8:00','12:00','16:00','20:00','12:00'])
-    ax.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=0,fontsize=12)
+    plt.title('Kriging result for ' + sequences[index]['station'].iloc[0] + ' ' + sequences[index]['Date'].iloc[0], fontsize=20)
+    ax.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=0, fontsize=12)
     plt.tight_layout()
     st.pyplot(fig)
 
@@ -106,38 +105,30 @@ def krige_og(sequences, X_res,index):
 
 
 def error_calculate(sequences, X_res, index):
-    input_seq=sequences.copy()[index]['Volume'].values
-    error = input_seq-X_res[0]
-    df=pd.DataFrame(error, columns=['Error'])
-    df['Location']=df.index
+    # Extract the time series values (columns 4 to 291 contain the 288 time points)
+    input_seq = sequences[index].iloc[0][4:292].values
+    error = input_seq - X_res[0]
+    df = pd.DataFrame(error, columns=['Error'])
+    df['Location'] = df.index
 
-    high=df['Error'].mean() + 2.5*df['Error'].std()
-    low=df['Error'].mean() - 2.5*df['Error'].std()
-    new_df = df['Error'][(df['Error']< high) & (df['Error'] < low)]
+    high = df['Error'].mean() + 2.5*df['Error'].std()
+    low = df['Error'].mean() - 2.5*df['Error'].std()
+    new_df = df['Error'][(df['Error'] < high) & (df['Error'] < low)]
 
-    # Define the indices of the points you want to replace
-    indices_to_replace = list(new_df.index.values)  # Replace points at index 1 and 3
-    # Define the new values you want to replace with
+    indices_to_replace = list(new_df.index.values)
     new_values = X_res[0][indices_to_replace]
-    # Update the time series array with the new values at the specified indices
     input_seq[indices_to_replace] = new_values
 
     fig,ax = plt.subplots(figsize = (16,5))
-    ax.plot(input_seq,label='Input Sequence',linewidth=2,zorder=5,color='gray')
-    #ax.plot(X_res[0],label='Kriging Sequence',linewidth=2,zorder=5,color='orange')
-    #ax.plot(insert_zero(truth[288*4:288*5,3]),label= 'Faulty Timeseries', color='r',linewidth=1,zorder=0)
-    plt.scatter(indices_to_replace, new_values, color='red', marker='x', label='Replaced Points',zorder=10)
-    #ax.plot(o[288*4:288*5,3],label='Kriging Results',linewidth = 3,zorder=10,color='orange')
-    ax.set_ylabel('CCS Counts',fontsize=20)
+    ax.plot(input_seq, label='Input Sequence', linewidth=2, zorder=5, color='gray')
+    plt.scatter(indices_to_replace, new_values, color='red', marker='x', label='Replaced Points', zorder=10)
+    ax.set_ylabel('CCS Counts', fontsize=20)
     ax.tick_params(axis="x", labelsize=14)
     ax.tick_params(axis="y", labelsize=14)
-    plt.title('Sequence Rectification for '+sequences[index]['Site'].iloc[0]+'_'+  sequences[index]['Direction'].iloc[0]+' '+ sequences[index]['Time'].iloc[0][0:10],fontsize=20)
-   # ax.set_xticklabels(['0:00','4:00','8:00','12:00','16:00','20:00','12:00'])
-    ax.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=0,fontsize=12)
+    plt.title('Sequence Rectification for ' + sequences[index]['station'].iloc[0] + ' ' + sequences[index]['Date'].iloc[0], fontsize=20)
+    ax.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=0, fontsize=12)
     plt.tight_layout()
     st.pyplot(fig)
-    #plt.savefig('fig/metr_ignnk_temporal.pdf')
-  
 
     return indices_to_replace
 
