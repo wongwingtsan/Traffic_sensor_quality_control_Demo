@@ -41,6 +41,9 @@ Thumbs.db
 # Large data files
 database/
 *.csv
-*.npy 
+*.npy
+
+# Exceptions - files to include
+!clustering_result_july13.csv
 
 test.ipynb
