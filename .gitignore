@@ -47,12 +47,6 @@ env/
 *.hdf5
 *.pkl
 
-# Keep data directory
-!data/
-!data/adj_mat.npy
-!data/test1.csv
-!data/*011-0103*
-
 # Streamlit
 .streamlit/
 
@@ -66,5 +60,8 @@ database/
 
 # Exceptions - files to include
 !clustering_result.csv
+!data/adj_mat.npy
+!data/test1.csv
+!data/011-0103_S.csv
 
 test.ipynb

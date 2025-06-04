@@ -66,25 +66,49 @@ def model_processing(z,K,h,model_path,DGCN,sequences,cluster_belong,DF,stationna
 
 
 def kriging_result(DGCN,sequences,cluster_belong,DF,stationname,other_stations_ls):
+    # Create array with shape (batch_size=1, timesteps=288, num_nodes=len(sequences))
     all_arrays = np.empty((1, 288, len(sequences)))
     
     for i in range(len(sequences)):
         # Extract the time series values (columns 4 to 291 contain the 288 time points)
         all_arrays[0,:,i] = sequences[i].iloc[0][4:292].values
     all_arrays = torch.from_numpy(all_arrays.astype('float32')).to(device)
+    
+    print("Shape of all_arrays:", all_arrays.shape)
+    print("Number of sequences:", len(sequences))
 
     CLUSTER = DF.loc[DF['cluster'] == cluster_belong]  
-    know_nodes = set(CLUSTER['Unnamed: 0'])
+    know_nodes = list(CLUSTER['Unnamed: 0'])  # Convert to list to maintain order
+    print("Number of nodes in cluster:", len(know_nodes))
+    
     adj = np.load('./data/adj_mat.npy')
-    A_dynamic = adj[list(know_nodes), :][:, list(know_nodes)]   
+    print("Shape of adjacency matrix:", adj.shape)
+    
+    # Ensure we have the correct indices for the adjacency matrix
+    node_indices = [i for i in range(len(know_nodes))]
+    A_dynamic = adj[node_indices][:, node_indices]
+    print("Shape of A_dynamic:", A_dynamic.shape)
+    
+    # Calculate random walk matrices
     A_q = torch.from_numpy((calculate_random_walk_matrix(A_dynamic).T).astype('float32')).to(device)
     A_h = torch.from_numpy((calculate_random_walk_matrix(A_dynamic.T).T).astype('float32')).to(device)
+    print("Shape of A_q:", A_q.shape)
+    print("Shape of A_h:", A_h.shape)
 
-    X_res = DGCN(all_arrays, A_q, A_h).data.cpu().numpy()
+    # Permute the input to match the model's expected shape
+    # From (batch_size, timesteps, num_nodes) to (batch_size, num_nodes, timesteps)
+    model_input = all_arrays.permute(0, 2, 1)
+    print("Shape of model input:", model_input.shape)
+
+    X_res = DGCN(model_input, A_q, A_h).data.cpu().numpy()
+    print("Shape of X_res:", X_res.shape)
+    
+    # Permute back to (batch_size, timesteps, num_nodes)
+    X_res = np.transpose(X_res, (0, 2, 1))
+    print("Shape of X_res after transpose:", X_res.shape)
     
     index = other_stations_ls.index(stationname)
-
-    return X_res[:,:,index], index
+    return X_res, index
 
 
 def krige_og(sequences, X_res, index):
@@ -92,7 +116,7 @@ def krige_og(sequences, X_res, index):
     input_seq = sequences[index].iloc[0][4:292].values
     fig,ax = plt.subplots(figsize = (16,5))
     ax.plot(input_seq, label='Input Sequence', linewidth=2, zorder=5, color='gray')
-    ax.plot(X_res[0], label='Kriging Sequence', linewidth=2, zorder=5, color='orange')
+    ax.plot(X_res[0,:,index], label='Kriging Sequence', linewidth=2, zorder=5, color='orange')
     ax.set_ylabel('CCS Counts',fontsize=20)
     ax.tick_params(axis="x", labelsize=14)
     ax.tick_params(axis="y", labelsize=14)
@@ -107,7 +131,7 @@ def krige_og(sequences, X_res, index):
 def error_calculate(sequences, X_res, index):
     # Extract the time series values (columns 4 to 291 contain the 288 time points)
     input_seq = sequences[index].iloc[0][4:292].values
-    error = input_seq - X_res[0]
+    error = input_seq - X_res[0,:,index]
     df = pd.DataFrame(error, columns=['Error'])
     df['Location'] = df.index
 
@@ -116,7 +140,7 @@ def error_calculate(sequences, X_res, index):
     new_df = df['Error'][(df['Error'] < high) & (df['Error'] < low)]
 
     indices_to_replace = list(new_df.index.values)
-    new_values = X_res[0][indices_to_replace]
+    new_values = X_res[0,:,index][indices_to_replace]
     input_seq[indices_to_replace] = new_values
 
     fig,ax = plt.subplots(figsize = (16,5))

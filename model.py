@@ -71,17 +71,31 @@ class D_GCN(nn.Module):
         :A_h: The backward random walk matrix (num_nodes, num_nodes)
         :return: Output data of shape (batch_size, num_nodes, num_features)
         """
-        batch_size = X.shape[0] # batch_size
-        num_node = X.shape[1]
-        input_size = X.size(2)  # time_length
+        batch_size = X.shape[0]  # batch_size
+        num_node = X.shape[1]    # number of nodes
+        input_size = X.size(2)   # time_length
+        
+        # Debug prints
+        print("Input X shape:", X.shape)
+        print("A_q shape:", A_q.shape)
+        print("A_h shape:", A_h.shape)
+        
         supports = []
         supports.append(A_q)
         supports.append(A_h)
         
-        x0 = X.permute(1, 2, 0) #(num_nodes, num_times, batch_size)
-        x0 = torch.reshape(x0, shape=[num_node, input_size * batch_size])
+        # Reshape X to (num_nodes, timesteps * batch_size)
+        x0 = X.permute(1, 2, 0).reshape(num_node, -1)
+        print("x0 shape after reshape:", x0.shape)
+        
         x = torch.unsqueeze(x0, 0)
+        print("x shape after unsqueeze:", x.shape)
+        
         for support in supports:
+            # Verify support matrix matches number of nodes
+            if support.shape != (num_node, num_node):
+                raise ValueError(f"Support matrix shape {support.shape} must match number of nodes {num_node}")
+            
             x1 = torch.mm(support, x0)
             x = self._concat(x, x1)
             for k in range(2, self.orders + 1):
@@ -92,8 +106,9 @@ class D_GCN(nn.Module):
         x = torch.reshape(x, shape=[self.num_matrices, num_node, input_size, batch_size])
         x = x.permute(3, 1, 2, 0)  # (batch_size, num_nodes, input_size, order)
         x = torch.reshape(x, shape=[batch_size, num_node, input_size * self.num_matrices])         
-        x = torch.matmul(x, self.Theta1)  # (batch_size * self._num_nodes, output_size)     
+        x = torch.matmul(x, self.Theta1)  # (batch_size, num_nodes, output_size)     
         x += self.bias
+        
         if self.activation == 'relu':
             x = F.relu(x)
         elif self.activation == 'selu':
@@ -118,42 +133,38 @@ def calculate_random_walk_matrix(adj_mx):
 class DGCN(nn.Module):
     """
     GNN on ST datasets to reconstruct the datasets
-   x_s
+    x_s
     |GNN_3
-   H_2 + H_1
+    H_2 + H_1
     |GNN_2
-   H_1
+    H_1
     |GNN_1
-  x^y_m     
+    x^y_m     
     """
     def __init__(self, h, z, k): 
         super(DGCN, self).__init__()
-        self.time_dimension = h
-        self.hidden_dimnesion = z
-        self.order = k
+        self.time_dimension = h  # Number of time steps (288)
+        self.hidden_dimension = z  # Hidden dimension size
+        self.order = k  # Order of the graph convolution
 
-        self.GNN1 = D_GCN(self.time_dimension, self.hidden_dimnesion, self.order)
-        self.GNN2 = D_GCN(self.hidden_dimnesion, self.hidden_dimnesion, self.order)
-        self.GNN3 = D_GCN(self.hidden_dimnesion, self.time_dimension, self.order, activation = 'linear')
-
-       # self.cross_attn = nn.MultiheadAttention(embed_dim=z, num_heads=8)
+        self.GNN1 = D_GCN(self.time_dimension, self.hidden_dimension, self.order)
+        self.GNN2 = D_GCN(self.hidden_dimension, self.hidden_dimension, self.order)
+        self.GNN3 = D_GCN(self.hidden_dimension, self.time_dimension, self.order, activation='linear')
 
     def forward(self, X, A_q, A_h):
         """
-        :param X: Input data of shape (batch_size, num_timesteps, num_nodes)
+        :param X: Input data of shape (batch_size, num_nodes, num_timesteps)
         :A_q: The forward random walk matrix (num_nodes, num_nodes)
         :A_h: The backward random walk matrix (num_nodes, num_nodes)
-        :return: Reconstructed X of shape (batch_size, num_timesteps, num_nodes)
+        :return: Reconstructed X of shape (batch_size, num_nodes, num_timesteps)
         """  
-        X_S = X.permute(0, 2, 1) # to correct the input dims 
+        # Input X is already in the correct shape (batch_size, num_nodes, timesteps)
+        print("DGCN input shape:", X.shape)
+        print("A_q shape:", A_q.shape)
+        print("A_h shape:", A_h.shape)
         
-        X_s1 = self.GNN1(X_S, A_q, A_h)
-        X_s2 = self.GNN2(X_s1, A_q, A_h)+X_s1
-
-       # X_s2,_= self.cross_attn(X_s2,X_s2,X_s1)
+        X_s1 = self.GNN1(X, A_q, A_h)
+        X_s2 = self.GNN2(X_s1, A_q, A_h) + X_s1
+        X_s3 = self.GNN3(X_s2, A_q, A_h)
         
-        X_s3 = self.GNN3(X_s2, A_q, A_h) 
-
-        X_res = X_s3.permute(0, 2, 1)
-               
-        return  X_res
+        return X_s3
