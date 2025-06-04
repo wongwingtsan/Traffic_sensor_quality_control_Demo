@@ -24,7 +24,6 @@ pip install -r requirements.txt
      - `database/2019-10.csv`
      - `adj_mat.npy`
      - `stationname.npy`
-     - `clustering_result_july13.csv`
    
    Please contact the Smart Mobility and Infrastructure Lab for access to these data files.
 
@@ -42,6 +41,7 @@ streamlit run main.py
    - Cluster
    - Correlated stations
    - Cluster location on map
+3. You have to upload the prompted all station CSV files in a group and it will return the repaired sequence CSV
 
 ## Data Requirements
 
