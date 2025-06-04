@@ -178,7 +178,7 @@ if file is not None:
         z = 16 #hidden dimension for graph convolution
         K = 1 #If using diffusion convolution, the actual diffusion convolution step is K+1 ##try more Convolution 
         h = 288
-        model_path = './model/DGCN_811.pth'
+        model_path = './model_save/DGCN_811.pth'
         DGCN = DGCN(h, z, K)
         DGCN.load_state_dict(torch.load(model_path))
         model_processing(z,K,h,model_path,DGCN,sequences,cluster_belong,DF,stationname,other_stations_ls,file_df)
@@ -198,7 +198,7 @@ if file is not None:
                 z = 16 #hidden dimension for graph convolution
                 K = 1 #If using diffusion convolution, the actual diffusion convolution step is K+1 ##try more Convolution 
                 h = 288
-                model_path = './model/DGCN_811.pth'
+                model_path = './model_save/DGCN_811.pth'
                 DGCN = DGCN(h, z, K)
                 DGCN.load_state_dict(torch.load(model_path))
                 model_processing(z,K,h,model_path,DGCN,sequences,cluster_belong,DF,stationname,other_stations_ls,file_df)
