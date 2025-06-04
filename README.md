@@ -16,14 +16,7 @@ This Streamlit web application is developed by the Smart Mobility and Infrastruc
 pip install -r requirements.txt
 ```
 
-2. Download required data files:
-   - Create a `database` directory in the project root
-   - Download the following files and place them in the appropriate locations:
-     - `database/2019-01.csv`
-     - `database/2019-08.csv`
-     - `database/2019-10.csv`
-     - `adj_mat.npy`
-     - `stationname.npy`
+2. Upload test1.csv and the 011-0103_S.csv from data folder to test the kriging results. 
    
    
 
